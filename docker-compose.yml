@@ -1,0 +1,123 @@
+services:
+  backend-one:
+    image: bank-backend-one:latest
+    ports:
+      - "${BACKEND_ONE_PORT}:8080"
+    environment:
+      - BACKEND_ONE_PORT=${BACKEND_ONE_PORT}
+      - POSTGRES_ONE_HOST=${POSTGRES_ONE_HOST}
+      - POSTGRES_ONE_PORT=${POSTGRES_ONE_PORT}
+      - POSTGRES_ONE_USER=${POSTGRES_ONE_USER}
+      - POSTGRES_ONE_PASSWORD=${POSTGRES_ONE_PASSWORD}
+      - POSTGRES_ONE_DATABASE=${POSTGRES_ONE_DATABASE}
+      - REDIS_ONE_HOST=${REDIS_ONE_HOST}
+      - REDIS_ONE_PORT=${REDIS_ONE_PORT}
+      - REDIS_ONE_PASSWORD=${REDIS_ONE_PASSWORD}
+      - PULSAR_ONE_HOST=${PULSAR_ONE_HOST}
+      - PULSAR_ONE_BROKER_PORT=${PULSAR_ONE_BROKER_PORT}
+      - PULSAR_ONE_WEB_PORT=${PULSAR_ONE_WEB_PORT}
+    depends_on:
+      - postgres-one
+      - redis-one
+      - broker-one
+    command: >
+      bash -c "java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/sun.net=ALL-UNNAMED -jar ./app.jar"
+
+  postgres-one:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=${POSTGRES_ONE_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_ONE_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_ONE_DATABASE}
+    ports:
+      - "${POSTGRES_ONE_PORT}:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+  redis-one:
+    image: redis:latest
+    ports:
+      - "${REDIS_ONE_PORT}:6379"
+    command: >
+      bash -c "redis-server --requirepass ${REDIS_ONE_PASSWORD}"
+
+  zookeeper-one:
+    image: apachepulsar/pulsar:latest
+    restart: on-failure
+    volumes:
+      - ./data/zookeeper:/pulsar/data/zookeeper
+    environment:
+      - metadataStoreUrl=zk:zookeeper:2181
+      - PULSAR_MEM=-Xms256m -Xmx256m -XX:MaxDirectMemorySize=256m
+    command: >
+      bash -c "bin/apply-config-from-env.py conf/zookeeper.conf && \
+             bin/generate-zookeeper-config.sh conf/zookeeper.conf && \
+             exec bin/pulsar zookeeper"
+    healthcheck:
+      test: [ "CMD", "bin/pulsar-zookeeper-ruok.sh" ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # Init cluster metadata
+  pulsar-init-one:
+    image: apachepulsar/pulsar:latest
+    command: >
+      bin/pulsar initialize-cluster-metadata \
+               --cluster cluster-a \
+               --zookeeper zookeeper-one:2181 \
+               --configuration-store zookeeper-one:2181 \
+               --web-service-url http://broker-one:8080 \
+               --broker-service-url pulsar://broker-one:6650
+    depends_on:
+      zookeeper-one:
+        condition: service_healthy
+
+  # Start bookie
+  bookie-one:
+    image: apachepulsar/pulsar:latest
+    restart: on-failure
+    environment:
+      - clusterName=cluster-a
+      - zkServers=zookeeper-one:2181
+      - metadataServiceUri=metadata-store:zk:zookeeper-one:2181
+      # otherwise every time we run docker compose uo or down we fail to start due to Cookie
+      # See: https://github.com/apache/bookkeeper/blob/405e72acf42bb1104296447ea8840d805094c787/bookkeeper-server/src/main/java/org/apache/bookkeeper/bookie/Cookie.java#L57-68
+      - advertisedAddress=bookie-one
+      - BOOKIE_MEM=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m
+    depends_on:
+      zookeeper-one:
+        condition: service_healthy
+      pulsar-init-one:
+        condition: service_completed_successfully
+    # Map the local directory to the container to avoid bookie startup failure due to insufficient container disks.
+    volumes:
+      - ./data/bookkeeper:/pulsar/data/bookkeeper
+    command: >
+      bash -c "bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
+
+  # Start broker
+  broker-one:
+    image: apachepulsar/pulsar:latest
+    restart: on-failure
+    environment:
+      - metadataStoreUrl=zk:zookeeper-one:2181
+      - zookeeperServers=zookeeper-one:2181
+      - clusterName=cluster-a
+      - managedLedgerDefaultEnsembleSize=1
+      - managedLedgerDefaultWriteQuorum=1
+      - managedLedgerDefaultAckQuorum=1
+      - advertisedAddress=broker-one
+      - advertisedListeners=external:pulsar://127.0.0.1:6650
+      - PULSAR_MEM=-Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m
+    depends_on:
+      zookeeper-one:
+        condition: service_healthy
+      bookie-one:
+        condition: service_started
+    ports:
+      - "${PULSAR_ONE_BROKER_PORT}:6650"
+      - "${PULSAR_ONE_WEB_PORT}:8080"
+    command: >
+      bash -c "bin/apply-config-from-env.py conf/broker.conf && exec bin/pulsar broker"
+
