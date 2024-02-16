@@ -13,8 +13,7 @@ CREATE TABLE account
 DROP TABLE IF EXISTS account_type;
 CREATE TABLE account_type
 (
-    id         uuid PRIMARY KEY,
-    name       text,
+    name       text PRIMARY KEY,
     created_at timestamptz,
     updated_at timestamptz
 );
@@ -62,9 +61,9 @@ VALUES ('1da428b8-e9f8-4ff9-9278-12c811e7a980'::uuid, 'email0@mail.com', 'passwo
         now()::timestamptz);
 
 -- populate account_type
-INSERT INTO account_type (id, name, created_at, updated_at)
-VALUES ('d46a146c-b6a4-4893-aead-28fef3a85af0'::uuid, 'type0', now()::timestamptz, now()::timestamptz),
-       ('d46a146c-b6a4-4893-aead-28fef3a85af1'::uuid, 'type1', now()::timestamptz, now()::timestamptz);
+INSERT INTO account_type (name, created_at, updated_at)
+VALUES ('admin', now()::timestamptz, now()::timestamptz),
+       ('user', now()::timestamptz, now()::timestamptz);
 
 -- populate account_type_map
 INSERT INTO account_type_map (id, account_id, account_type_id, created_at, updated_at)
