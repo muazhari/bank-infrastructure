@@ -1,3 +1,6 @@
+-- install pggcrypto
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- create table account
 DROP TABLE IF EXISTS account;
 CREATE TABLE account
@@ -22,11 +25,11 @@ CREATE TABLE account_type
 DROP TABLE IF EXISTS account_type_map;
 CREATE TABLE account_type_map
 (
-    id              uuid PRIMARY KEY,
-    account_id      uuid,
-    account_type_id uuid,
-    created_at      timestamptz,
-    updated_at      timestamptz
+    id                uuid PRIMARY KEY,
+    account_id        uuid,
+    account_type_name text,
+    created_at        timestamptz,
+    updated_at        timestamptz
 );
 
 -- create table ledger
@@ -55,9 +58,11 @@ CREATE TABLE transaction
 
 -- populate account
 INSERT INTO account (id, email, password, created_at, updated_at)
-VALUES ('1da428b8-e9f8-4ff9-9278-12c811e7a980'::uuid, 'email0@mail.com', 'password0', now()::timestamptz,
+VALUES ('1da428b8-e9f8-4ff9-9278-12c811e7a980'::uuid, 'email0@mail.com', crypt('password0', gen_salt('bf')),
+        now()::timestamptz,
         now()::timestamptz),
-       ('1da428b8-e9f8-4ff9-9278-12c811e7a981'::uuid, 'email1@mail.com', 'password1', now()::timestamptz,
+       ('1da428b8-e9f8-4ff9-9278-12c811e7a981'::uuid, 'email1@mail.com', crypt('password1', gen_salt('bf')),
+        now()::timestamptz,
         now()::timestamptz);
 
 -- populate account_type
@@ -66,12 +71,12 @@ VALUES ('admin', now()::timestamptz, now()::timestamptz),
        ('user', now()::timestamptz, now()::timestamptz);
 
 -- populate account_type_map
-INSERT INTO account_type_map (id, account_id, account_type_id, created_at, updated_at)
+INSERT INTO account_type_map (id, account_id, account_type_name, created_at, updated_at)
 VALUES ('e76e9561-2156-4ba3-8479-54bbe4bf90b0'::uuid, '1da428b8-e9f8-4ff9-9278-12c811e7a980'::uuid,
-        'd46a146c-b6a4-4893-aead-28fef3a85af0'::uuid,
+        'admin',
         now()::timestamptz, now()::timestamptz),
        ('e76e9561-2156-4ba3-8479-54bbe4bf90b1'::uuid, '1da428b8-e9f8-4ff9-9278-12c811e7a981'::uuid,
-        'd46a146c-b6a4-4893-aead-28fef3a85af1'::uuid,
+        'user',
         now()::timestamptz, now()::timestamptz);
 
 -- populate ledger
@@ -111,6 +116,10 @@ from ledger l1
       FROM transaction t1
       where t1.updated_at = (select max(t1.updated_at) from transaction t1)) t1
      on l1.id = t1.ledger_id;
+
+
+select *
+from account;
 
 
 
