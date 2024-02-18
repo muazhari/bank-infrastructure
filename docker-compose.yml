@@ -32,7 +32,7 @@ services:
     ports:
       - "${POSTGRES_ONE_PORT}:5432"
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - ./data/postgres-one:/var/lib/postgresql/data
 
   redis-one:
     image: redis:latest
@@ -41,11 +41,20 @@ services:
     command: >
       bash -c "redis-server --requirepass ${REDIS_ONE_PASSWORD}"
 
+  redis-insight-one:
+    image: oblakstudio/redisinsight:latest
+    ports:
+      - "${REDIS_INSIGHT_ONE_PORT}:5540"
+    volumes:
+      - ./data/redis-insight-one:/db
+    depends_on:
+      - redis-one
+
   zookeeper-one:
     image: apachepulsar/pulsar:latest
     restart: on-failure
     volumes:
-      - ./data/zookeeper:/pulsar/data/zookeeper
+      - ./data/zookeeper-one:/pulsar/data/zookeeper
     environment:
       - metadataStoreUrl=zk:zookeeper:2181
       - PULSAR_MEM=-Xms256m -Xmx256m -XX:MaxDirectMemorySize=256m
@@ -92,7 +101,7 @@ services:
         condition: service_completed_successfully
     # Map the local directory to the container to avoid bookie startup failure due to insufficient container disks.
     volumes:
-      - ./data/bookkeeper:/pulsar/data/bookkeeper
+      - ./data/bookkeeper-one:/pulsar/data/bookkeeper
     command: >
       bash -c "bin/apply-config-from-env.py conf/bookkeeper.conf && exec bin/pulsar bookie"
 

@@ -6,7 +6,7 @@ DROP TABLE IF EXISTS account;
 CREATE TABLE account
 (
     id         uuid PRIMARY KEY,
-    email      text,
+    email      text unique,
     password   text,
     created_at timestamptz,
     updated_at timestamptz
@@ -16,7 +16,8 @@ CREATE TABLE account
 DROP TABLE IF EXISTS account_type;
 CREATE TABLE account_type
 (
-    name       text PRIMARY KEY,
+    id         uuid PRIMARY KEY,
+    name       text unique,
     created_at timestamptz,
     updated_at timestamptz
 );
@@ -25,11 +26,11 @@ CREATE TABLE account_type
 DROP TABLE IF EXISTS account_type_map;
 CREATE TABLE account_type_map
 (
-    id                uuid PRIMARY KEY,
-    account_id        uuid,
-    account_type_name text,
-    created_at        timestamptz,
-    updated_at        timestamptz
+    id              uuid PRIMARY KEY,
+    account_id      uuid,
+    account_type_id uuid,
+    created_at      timestamptz,
+    updated_at      timestamptz
 );
 
 -- create table ledger
@@ -66,17 +67,17 @@ VALUES ('1da428b8-e9f8-4ff9-9278-12c811e7a980'::uuid, 'email0@mail.com', crypt('
         now()::timestamptz);
 
 -- populate account_type
-INSERT INTO account_type (name, created_at, updated_at)
-VALUES ('admin', now()::timestamptz, now()::timestamptz),
-       ('user', now()::timestamptz, now()::timestamptz);
+INSERT INTO account_type (id, name, created_at, updated_at)
+VALUES ('44bf8838-e8e6-455c-bedd-06e27e0b7340'::uuid, 'admin', now()::timestamptz, now()::timestamptz),
+       ('44bf8838-e8e6-455c-bedd-06e27e0b7341'::uuid, 'user', now()::timestamptz, now()::timestamptz);
 
 -- populate account_type_map
-INSERT INTO account_type_map (id, account_id, account_type_name, created_at, updated_at)
+INSERT INTO account_type_map (id, account_id, account_type_id, created_at, updated_at)
 VALUES ('e76e9561-2156-4ba3-8479-54bbe4bf90b0'::uuid, '1da428b8-e9f8-4ff9-9278-12c811e7a980'::uuid,
-        'admin',
+        '44bf8838-e8e6-455c-bedd-06e27e0b7340'::uuid,
         now()::timestamptz, now()::timestamptz),
        ('e76e9561-2156-4ba3-8479-54bbe4bf90b1'::uuid, '1da428b8-e9f8-4ff9-9278-12c811e7a981'::uuid,
-        'user',
+        '44bf8838-e8e6-455c-bedd-06e27e0b7341'::uuid,
         now()::timestamptz, now()::timestamptz);
 
 -- populate ledger

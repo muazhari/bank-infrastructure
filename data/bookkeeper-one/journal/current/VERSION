@@ -1,0 +1,5 @@
+5
+bookieHost: "bookie-one:3181"
+journalDir: "data/bookkeeper/journal"
+ledgerDirs: "1\tdata/bookkeeper/ledgers"
+instanceId: "df71c55f-d751-45ce-972b-e31ce6d90794"
